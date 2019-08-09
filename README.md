@@ -35,32 +35,14 @@ def forward(self):
 
 ## Sigmoid Function
 
-Neural networks take advantage of alternating transforms and activation functions to better categorize outputs. 
-
-The sigmoid function is among the most common activation functions.
-
 ```python
-    def forward(self):
-        """
-        Perform the sigmoid function and set the value.
-        """
-        input_value = self.inbound_nodes[0].value
-        self.value = self._sigmoid(input_value)
+def _sigmoid(self, x):
+    return 1. / (1. + np.exp(-x)) # the `.` ensures that `1` is a float
 
-    def backward(self):
-        """
-        Calculates the gradient using the derivative of
-        the sigmoid function.
-        """
-        # Initialize the gradients to 0.
-        self.gradients = {n: np.zeros_like(n.value) for n in self.inbound_nodes}
-        # Sum the partial with respect to the input over all the outputs.
-        for n in self.outbound_nodes:
-            grad_cost = n.gradients[self]
-            sigmoid = self.value
-            self.gradients[self.inbound_nodes[0]] += sigmoid * (1 - sigmoid) * grad_cost
+def forward(self):
+    input_value = self.inbound_nodes[0].value
+    self.value = self._sigmoid(input_value)
 ```
-
 
 ## Cost Function
 

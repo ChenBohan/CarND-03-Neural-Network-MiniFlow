@@ -1,4 +1,5 @@
-# AI-Deep-Learning-01-Mini-Neural-Network-Library
+# CarND-03-Neural-Network-MiniFlow
+
 Udacity Self-Driving Car Engineer Nanodegree: MiniFlow.
 
 ## Forward Propagation

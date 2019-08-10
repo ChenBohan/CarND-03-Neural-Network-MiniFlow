@@ -108,23 +108,43 @@ class Sigmoid(Node)
 
 ## Stochastic Gradient Descent
 
-Stochastic Gradient Descent (SGD) is a version of Gradient Descent where on each forward pass a batch of data is randomly sampled from total dataset.
+A naive implementation of SGD involves:
+
+1. Randomly sample a batch of data from the total dataset.
+2. Running the network forward and backward to calculate the gradient (with data from (1)).
+3. Apply the gradient descent update.
+4. Repeat steps 1-3 until convergence or the loop is stopped by another mechanism (i.e. the number of epochs).
+
 
 ```python
-def sgd_update(trainables, learning_rate=1e-2):
-    """
-    Updates the value of each trainable with SGD.
-    Arguments:
-        `trainables`: A list of `Input` nodes representing weights/biases.
-        `learning_rate`: The learning rate.
-    """
-    # Performs SGD
-    # Loop over the trainables
-    for t in trainables:
-        # Change the trainable's value by subtracting the learning rate
-        # multiplied by the partial of the cost with respect to this trainable.
-        partial = t.gradients[t]
-        t.value -= learning_rate * partial
+epochs = 10
+# Total number of examples
+m = X_.shape[0]
+batch_size = 11
+steps_per_epoch = m
+
+graph = topological_sort(feed_dict)
+trainables = [W1, b1, W2, b2]
+
+# Step 4
+for i in range(epochs):
+    loss = 0
+    for j in range(steps_per_epoch):
+        # Step 1
+        # Randomly sample a batch of examples
+        X_batch, y_batch = resample(X_, y_, n_samples=batch_size)
+
+        # Reset value of X and y Inputs
+        X.value = X_batch
+        y.value = y_batch
+
+        # Step 2
+        forward_and_backward(graph)
+
+        # Step 3
+        sgd_update(trainables)
+
+        loss += graph[-1].value
 ```
 
 First, the partial of the cost (C) with respect to the trainable ``t`` is accessed.

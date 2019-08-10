@@ -2,6 +2,13 @@
 
 Udacity Self-Driving Car Engineer Nanodegree: MiniFlow.
 
+## Further Reading
+
+- [Partial derivatives](https://www.khanacademy.org/math/multivariable-calculus/multivariable-derivatives/partial-derivatives/v/partial-derivatives-introduction)
+- [Gradients](https://www.khanacademy.org/math/multivariable-calculus/multivariable-derivatives/gradient-and-directional-derivatives/v/gradient)
+- [Yes you should understand backprop](https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b#.fowl6fvfk)
+- [Vector, Matrix, and Tensor Derivatives](http://cs231n.stanford.edu/vecDerivs.pdf)
+
 ## Forward Propagation
 
 ```
@@ -44,34 +51,35 @@ def forward(self):
     self.value = self._sigmoid(input_value)
 ```
 
-## Cost Function
-
-I will calculate the cost using the mean squared error (MSE).
+## MSE Cost
 
 ```python
-    def forward(self):
-        """
-        Calculates the mean squared error.
-        """
-        y = self.inbound_nodes[0].value.reshape(-1, 1)
-        a = self.inbound_nodes[1].value.reshape(-1, 1)
+def forward(self):
+    """
+    Calculates the mean squared error.
+    """
+    # NOTE: We reshape these to avoid possible matrix/vector broadcast
+    # errors.
+    #
+    # For example, if we subtract an array of shape (3,) from an array of shape
+    # (3,1) we get an array of shape(3,3) as the result when we want
+    # an array of shape (3,1) instead.
+    #
+    # Making both arrays (3,1) insures the result is (3,1) and does
+    # an elementwise subtraction as expected.
+    
+    y = self.inbound_nodes[0].value.reshape(-1, 1)
+    a = self.inbound_nodes[1].value.reshape(-1, 1)
+    m = self.inbound_nodes[0].value.shape[0]
 
-        self.m = self.inbound_nodes[0].value.shape[0]
-        # Save the computed output for backward.
-        self.diff = y - a
-        self.value = np.mean(self.diff**2)
-
-    def backward(self):
-        """
-        Calculates the gradient of the cost.
-        """
-        self.gradients[self.inbound_nodes[0]] = (2 / self.m) * self.diff
-        self.gradients[self.inbound_nodes[1]] = (-2 / self.m) * self.diff
+    diff = y - a
+    self.value = np.mean(diff**2)
 ```
 
 ## Gradient Descent
 
-We adjust the old ``x`` pushing it in the direction of ``gradx`` with the force ``learning_rate``, by subtracting ``learning_rate * gradx``.
+Empirically, Learning rate in the range 0.1 to 0.0001 work well. 
+The range 0.001 to 0.0001 is popular, as 0.1 and 0.01 are sometimes too large.
 
 ```python
 def gradient_descent_update(x, gradx, learning_rate):
@@ -81,17 +89,21 @@ def gradient_descent_update(x, gradx, learning_rate):
 
 ## Backpropagation
 
-The ``backward`` method sums the derivative (it's a normal derivative when there's only one variable) with respect to the only input over all the output nodes.
+A composition of functions `MSE(Linear(Sigmoid(Linear(X, W1, b1)), W2, b2), y)`
 
 ```python
-def backward(self):
-  # Initialize the gradients to 0.
-  self.gradients = {n: np.zeros_like(n.value) for n in self.inbound_nodes}
-  # Sum the derivative with respect to the input over all the outputs.
-  for n in self.outbound_nodes:
-    grad_cost = n.gradients[self]
-    sigmoid = self.value
-    self.gradients[self.inbound_nodes[0]] += sigmoid * (1 - sigmoid) * grad_cost
+class Sigmoid(Node)
+    def backward(self):
+        # Initialize the gradients to 0.
+        self.gradients = {n: np.zeros_like(n.value) for n in self.inbound_nodes}
+
+        # Cycle through the outputs. The gradient will change depending
+        # on each output, so the gradients are summed over all outputs.
+        for n in self.outbound_nodes:
+            # Get the partial of the cost with respect to this node.
+            grad_cost = n.gradients[self]
+            sigmoid = self.value
+            self.gradients[self.inbound_nodes[0]] += sigmoid * (1 - sigmoid) * grad_cost
 ```
 
 ## Stochastic Gradient Descent

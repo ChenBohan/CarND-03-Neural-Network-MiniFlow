@@ -2,101 +2,84 @@
 
 Udacity Self-Driving Car Engineer Nanodegree: MiniFlow.
 
+## Further Reading
+
+- [Partial derivatives](https://www.khanacademy.org/math/multivariable-calculus/multivariable-derivatives/partial-derivatives/v/partial-derivatives-introduction)
+- [Gradients](https://www.khanacademy.org/math/multivariable-calculus/multivariable-derivatives/gradient-and-directional-derivatives/v/gradient)
+- [Yes you should understand backprop](https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b#.fowl6fvfk)
+- [Vector, Matrix, and Tensor Derivatives](http://cs231n.stanford.edu/vecDerivs.pdf)
+
 ## Forward Propagation
 
-MiniFlow has two methods to help you define and then run values through your graphs: ``topological_sort()`` and ``forward_pass()``.
-
-``topological_sort()`` returns a sorted list of nodes in which all of the calculations can run in series.
-
-``forward_pass()`` actually runs the network and outputs a value.
+```
+def forward(self):
+    x_value = self.inbound_nodes[0].value
+    y_value = self.inbound_nodes[1].value
+    self.value = x_value + y_value
+```
 
 ## Linear Transform
 
 Linear algebra nicely reflects the idea of transforming values between layers in a graph.
 
 ```python
-    def forward(self):
-        X = self.inbound_nodes[0].value
-        W = self.inbound_nodes[1].value
-        b = self.inbound_nodes[2].value
-        self.value = np.dot(X, W) + b
+def forward(self):
+    inputs = self.inbound_nodes[0].value
+    weights = self.inbound_nodes[1].value
+    bias = self.inbound_nodes[2].value
+    self.value = bias
+    for x, w in zip(inputs, weights):
+        self.value += x * w
+```
 
-    def backward(self):
-        """
-        Calculates the gradient based on the output values.
-        """
-        # Initialize a partial for each of the inbound_nodes.
-        self.gradients = {n: np.zeros_like(n.value) for n in self.inbound_nodes}
-        # Cycle through the outputs. The gradient will change depending
-        # on each output, so the gradients are summed over all outputs.
-        for n in self.outbound_nodes:
-            # Get the partial of the cost with respect to this node.
-            grad_cost = n.gradients[self]
-            # Set the partial of the loss with respect to this node's inputs.
-            self.gradients[self.inbound_nodes[0]] += np.dot(grad_cost, self.inbound_nodes[1].value.T)
-            # Set the partial of the loss with respect to this node's weights.
-            self.gradients[self.inbound_nodes[1]] += np.dot(self.inbound_nodes[0].value.T, grad_cost)
-            # Set the partial of the loss with respect to this node's bias.
-            self.gradients[self.inbound_nodes[2]] += np.sum(grad_cost, axis=0, keepdims=False)
+```python
+def forward(self):
+    X = self.inbound_nodes[0].value
+    W = self.inbound_nodes[1].value
+    b = self.inbound_nodes[2].value
+    self.value = np.dot(X, W) + b
 ```
 
 ## Sigmoid Function
 
-Neural networks take advantage of alternating transforms and activation functions to better categorize outputs. 
-
-The sigmoid function is among the most common activation functions.
-
 ```python
-    def forward(self):
-        """
-        Perform the sigmoid function and set the value.
-        """
-        input_value = self.inbound_nodes[0].value
-        self.value = self._sigmoid(input_value)
+def _sigmoid(self, x):
+    return 1. / (1. + np.exp(-x)) # the `.` ensures that `1` is a float
 
-    def backward(self):
-        """
-        Calculates the gradient using the derivative of
-        the sigmoid function.
-        """
-        # Initialize the gradients to 0.
-        self.gradients = {n: np.zeros_like(n.value) for n in self.inbound_nodes}
-        # Sum the partial with respect to the input over all the outputs.
-        for n in self.outbound_nodes:
-            grad_cost = n.gradients[self]
-            sigmoid = self.value
-            self.gradients[self.inbound_nodes[0]] += sigmoid * (1 - sigmoid) * grad_cost
+def forward(self):
+    input_value = self.inbound_nodes[0].value
+    self.value = self._sigmoid(input_value)
 ```
 
-
-## Cost Function
-
-I will calculate the cost using the mean squared error (MSE).
+## MSE Cost
 
 ```python
-    def forward(self):
-        """
-        Calculates the mean squared error.
-        """
-        y = self.inbound_nodes[0].value.reshape(-1, 1)
-        a = self.inbound_nodes[1].value.reshape(-1, 1)
+def forward(self):
+    """
+    Calculates the mean squared error.
+    """
+    # NOTE: We reshape these to avoid possible matrix/vector broadcast
+    # errors.
+    #
+    # For example, if we subtract an array of shape (3,) from an array of shape
+    # (3,1) we get an array of shape(3,3) as the result when we want
+    # an array of shape (3,1) instead.
+    #
+    # Making both arrays (3,1) insures the result is (3,1) and does
+    # an elementwise subtraction as expected.
+    
+    y = self.inbound_nodes[0].value.reshape(-1, 1)
+    a = self.inbound_nodes[1].value.reshape(-1, 1)
+    m = self.inbound_nodes[0].value.shape[0]
 
-        self.m = self.inbound_nodes[0].value.shape[0]
-        # Save the computed output for backward.
-        self.diff = y - a
-        self.value = np.mean(self.diff**2)
-
-    def backward(self):
-        """
-        Calculates the gradient of the cost.
-        """
-        self.gradients[self.inbound_nodes[0]] = (2 / self.m) * self.diff
-        self.gradients[self.inbound_nodes[1]] = (-2 / self.m) * self.diff
+    diff = y - a
+    self.value = np.mean(diff**2)
 ```
 
 ## Gradient Descent
 
-We adjust the old ``x`` pushing it in the direction of ``gradx`` with the force ``learning_rate``, by subtracting ``learning_rate * gradx``.
+Empirically, Learning rate in the range 0.1 to 0.0001 work well. 
+The range 0.001 to 0.0001 is popular, as 0.1 and 0.01 are sometimes too large.
 
 ```python
 def gradient_descent_update(x, gradx, learning_rate):
@@ -106,38 +89,62 @@ def gradient_descent_update(x, gradx, learning_rate):
 
 ## Backpropagation
 
-The ``backward`` method sums the derivative (it's a normal derivative when there's only one variable) with respect to the only input over all the output nodes.
+A composition of functions `MSE(Linear(Sigmoid(Linear(X, W1, b1)), W2, b2), y)`
 
 ```python
-def backward(self):
-  # Initialize the gradients to 0.
-  self.gradients = {n: np.zeros_like(n.value) for n in self.inbound_nodes}
-  # Sum the derivative with respect to the input over all the outputs.
-  for n in self.outbound_nodes:
-    grad_cost = n.gradients[self]
-    sigmoid = self.value
-    self.gradients[self.inbound_nodes[0]] += sigmoid * (1 - sigmoid) * grad_cost
+class Sigmoid(Node)
+    def backward(self):
+        # Initialize the gradients to 0.
+        self.gradients = {n: np.zeros_like(n.value) for n in self.inbound_nodes}
+
+        # Cycle through the outputs. The gradient will change depending
+        # on each output, so the gradients are summed over all outputs.
+        for n in self.outbound_nodes:
+            # Get the partial of the cost with respect to this node.
+            grad_cost = n.gradients[self]
+            sigmoid = self.value
+            self.gradients[self.inbound_nodes[0]] += sigmoid * (1 - sigmoid) * grad_cost
 ```
 
 ## Stochastic Gradient Descent
 
-Stochastic Gradient Descent (SGD) is a version of Gradient Descent where on each forward pass a batch of data is randomly sampled from total dataset.
+A naive implementation of SGD involves:
+
+1. Randomly sample a batch of data from the total dataset.
+2. Running the network forward and backward to calculate the gradient (with data from (1)).
+3. Apply the gradient descent update.
+4. Repeat steps 1-3 until convergence or the loop is stopped by another mechanism (i.e. the number of epochs).
+
 
 ```python
-def sgd_update(trainables, learning_rate=1e-2):
-    """
-    Updates the value of each trainable with SGD.
-    Arguments:
-        `trainables`: A list of `Input` nodes representing weights/biases.
-        `learning_rate`: The learning rate.
-    """
-    # Performs SGD
-    # Loop over the trainables
-    for t in trainables:
-        # Change the trainable's value by subtracting the learning rate
-        # multiplied by the partial of the cost with respect to this trainable.
-        partial = t.gradients[t]
-        t.value -= learning_rate * partial
+epochs = 10
+# Total number of examples
+m = X_.shape[0]
+batch_size = 11
+steps_per_epoch = m
+
+graph = topological_sort(feed_dict)
+trainables = [W1, b1, W2, b2]
+
+# Step 4
+for i in range(epochs):
+    loss = 0
+    for j in range(steps_per_epoch):
+        # Step 1
+        # Randomly sample a batch of examples
+        X_batch, y_batch = resample(X_, y_, n_samples=batch_size)
+
+        # Reset value of X and y Inputs
+        X.value = X_batch
+        y.value = y_batch
+
+        # Step 2
+        forward_and_backward(graph)
+
+        # Step 3
+        sgd_update(trainables)
+
+        loss += graph[-1].value
 ```
 
 First, the partial of the cost (C) with respect to the trainable ``t`` is accessed.

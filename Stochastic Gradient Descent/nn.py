@@ -1,3 +1,13 @@
+"""
+Check out the new network architecture and dataset!
+
+Notice that the weights and biases are
+generated randomly.
+
+No need to change anything, but feel free to tweak
+to test your network, play around with the epochs, batch size, etc!
+"""
+
 import numpy as np
 from sklearn.datasets import load_boston
 from sklearn.utils import shuffle, resample
@@ -37,7 +47,7 @@ feed_dict = {
     b2: b2_
 }
 
-epochs = 1000
+epochs = 10
 # Total number of examples
 m = X_.shape[0]
 batch_size = 11
@@ -69,3 +79,4 @@ for i in range(epochs):
         loss += graph[-1].value
 
     print("Epoch: {}, Loss: {:.3f}".format(i+1, loss/steps_per_epoch))
+
